@@ -1,0 +1,25 @@
+# Dependencias e arquivos temporarios
+node_modules/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Credenciais, sessoes e backups locais
+.env
+.env.*
+!.env.example
+*.env
+*.pem
+*.key
+*.log
+*.zip
+backups/
+qr-whatsapp*.png
+
+# Bases comerciais e resultados locais
+*.xlsx
+*.xls
+outputs/
+automacao-local/dados/*.json
+whats.txt

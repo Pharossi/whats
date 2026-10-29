@@ -1,0 +1,91 @@
+name: crescer-whatsapp
+services:
+  postgres:
+    image: postgres:16.10-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: crescer
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Execute Preparar.ps1}
+      POSTGRES_DB: crescer
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U crescer -d crescer"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  redis:
+    image: redis:7.4.6-alpine
+    restart: unless-stopped
+    command: [redis-server, --appendonly, 'yes']
+    volumes: [redis_data:/data]
+  evolution:
+    image: evoapicloud/evolution-api:v2.3.7
+    restart: unless-stopped
+    ports: ['127.0.0.1:8080:8080']
+    environment:
+      SERVER_URL: http://localhost:8080
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:?Execute Preparar.ps1}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: 'false'
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://crescer:${POSTGRES_PASSWORD}@postgres:5432/evolution?schema=public
+      CACHE_REDIS_ENABLED: 'true'
+      CACHE_REDIS_URI: redis://redis:6379/0
+      CACHE_REDIS_PREFIX_KEY: crescer
+      CACHE_REDIS_SAVE_INSTANCES: 'false'
+      DEL_INSTANCE: 'false'
+      TELEMETRY_ENABLED: 'false'
+      LOG_LEVEL: ERROR,WARN
+      WEBHOOK_GLOBAL_ENABLED: 'true'
+      WEBHOOK_GLOBAL_URL: http://fila:8000/webhook/${WEBHOOK_SECRET}
+      WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: 'false'
+      WEBHOOK_EVENTS_MESSAGES_UPSERT: 'true'
+      WEBHOOK_EVENTS_MESSAGES_UPDATE: 'false'
+      WEBHOOK_EVENTS_CONNECTION_UPDATE: 'false'
+    volumes: [evolution_data:/evolution/instances]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_started}
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.45.5
+    restart: unless-stopped
+    ports: ['127.0.0.1:5678:5678']
+    environment:
+      TZ: America/Sao_Paulo
+      GENERIC_TIMEZONE: America/Sao_Paulo
+      N8N_HOST: localhost
+      N8N_PROTOCOL: http
+      N8N_SECURE_COOKIE: 'false'
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?Execute Preparar.ps1}
+      N8N_DIAGNOSTICS_ENABLED: 'false'
+      N8N_PERSONALIZATION_ENABLED: 'false'
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: 'true'
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: crescer
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: [n8n_data:/home/node/.n8n]
+    depends_on:
+      postgres: {condition: service_healthy}
+  fila:
+    build: ./fila
+    restart: unless-stopped
+    ports: ['127.0.0.1:8090:8000']
+    environment:
+      DATABASE_URL: postgresql://crescer:${POSTGRES_PASSWORD}@postgres:5432/crescer
+      ADMIN_KEY: ${ADMIN_KEY:?Execute Preparar.ps1}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
+      EVOLUTION_URL: http://evolution:8080
+      EVOLUTION_INSTANCE: crescer
+      LIVE_SEND_ENABLED: ${LIVE_SEND_ENABLED:-false}
+    volumes: ['./dados:/data:ro']
+    depends_on:
+      postgres: {condition: service_healthy}
+volumes:
+  postgres_data:
+  redis_data:
+  evolution_data:
+  n8n_data:

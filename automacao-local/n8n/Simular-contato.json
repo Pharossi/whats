@@ -1,0 +1,10 @@
+{
+  "name": "Crescer - Simular proximo contato (sem envio)",
+  "nodes": [
+    {"parameters": {}, "id": "manual", "name": "Executar manualmente", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [0, 0]},
+    {"parameters": {"method": "POST", "url": "http://fila:8000/dispatch", "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth", "sendBody": true, "specifyBody": "json", "jsonBody": "{\"live\":false}", "options": {"timeout": 30000}}, "id": "simulate", "name": "Simular contato aprovado", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [280, 0], "credentials": {"httpHeaderAuth": {"name": "Crescer fila local"}}}
+  ],
+  "connections": {"Executar manualmente": {"main": [[{"node": "Simular contato aprovado", "type": "main", "index": 0}]]}},
+  "settings": {"executionOrder": "v1"},
+  "active": false
+}
